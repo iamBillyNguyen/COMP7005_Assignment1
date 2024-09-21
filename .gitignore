@@ -1,0 +1,3 @@
+*.gcno
+*-traceable
+*.dSYM
