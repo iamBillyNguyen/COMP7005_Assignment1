@@ -1,60 +1,72 @@
-#include <stdio.h>
-#include <string.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+#define SOCKET_PATH "/tmp/socket"
+#define BUFFER_SIZE 1024
 
 // Create server socket
-void create_socket(int& fd)
-{
-    if ((fd = socket(AF_UNIX, SOCK_STREAM, 0) < 0))
-    {
-        perror("Error: Cannot create socket.");
-        exit(EXIT_FAILURE);
+static int create_socket(void) {
+  int fd;
+#ifdef SOCK_CLOEXEC
+  fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
+  fd = socket(AF_UNIX, SOCK_STREAM, 0);
+#endif
+  if (fd < 0) {
+    perror("Error: Cannot create socket.");
+    exit(EXIT_FAILURE);
+  }
+  return fd;
+}
+
+static void bind_socket(int fd) {
+  struct sockaddr_un address;
+  memset(&address, 0, sizeof(address));
+  address.sun_family = AF_UNIX;
+  strncpy(address.sun_path, SOCKET_PATH, sizeof(address.sun_path) - 1);
+  address.sun_path[sizeof(address.sun_path) - 1] = '\0';
+
+  if (bind(fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    perror("Error: Cannot bind socket.");
+    exit(EXIT_FAILURE);
+  }
+}
+
+static void listen_socket(int fd) {
+  if (listen(fd, SOMAXCONN) < 0) {
+    perror("Error: Cannot listen on socket.");
+    close(fd);
+    exit(EXIT_FAILURE);
+  }
+}
+
+static int accept_socket(int fd) {
+  ssize_t bytes;
+  int new_fd;
+  char buffer[BUFFER_SIZE];
+
+  while (1) {
+    printf("Waiting for connection...\n");
+    new_fd = accept(fd, NULL, NULL);
+    printf("Connection accepted.\n");
+    while ((bytes = read(new_fd, &buffer, BUFFER_SIZE) > 0)) {
+      // TODO parse and handle the bytes
+      printf("Received %zd bytes.\n", bytes);
     }
+  }
 }
 
-void setup_socket(int& fd)
-{
-    // TODO Set up server address
-}
+int main(void) {
+  int server_fd;
+  server_fd = create_socket();
+  bind_socket(server_fd);
+  listen_socket(server_fd);
+  accept_socket(server_fd);
 
-void bind_socket(int& fd)
-{
-    // TODO Bind address to server socket
-    bind(fd, );
-}
-
-void listen_socket(int& fd)
-{
-    // TODO Listen for client connections
-}
-
-void accept_socket(int& fd)
-{
-    // TODO Accept client connections
-}
-
-int main(int argc,  char const* argv[])
-{
-    int main_socket;
-    struct sockaddr_un address;
-//    int *server_fd;
-//    create_socket(*server_fd);
-//    bind_socket(*server_fd);
-    // TODO
-    int server_fd;
-    if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0) < 0))
-    {
-        perror("Error: Cannot create socket.");
-        exit(EXIT_FAILURE);
-    }
-
-    memset(&address, 0, sizeof(address));
-    address.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, SV_SOCK_PATH, sizeof(addr.sun_path) - 1);
-    bind(server_fd, );
-
-    exit(EXIT_SUCCESS);
+  exit(EXIT_SUCCESS);
 }
