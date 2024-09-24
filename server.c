@@ -62,22 +62,23 @@ static int accept_socket(int fd) {
 
 int main(void) {
   int server_fd;
-  char buffer[BUFFER_SIZE];
-  ssize_t bytes;
-  //  int client_fd;
 
   server_fd = create_socket();
   bind_socket(server_fd);
   listen_socket(server_fd);
-  accept_socket(server_fd);
+  while (1) {
+    int client_fd;
+    ssize_t bytes;
+    char buffer[BUFFER_SIZE];
 
-  //  while (1) {
-  bytes = read(server_fd, &buffer, BUFFER_SIZE);
-  //    while (bytes > 0) {
-  // TODO parse and handle the bytes
-  printf("Received %zd bytes.\n", bytes);
-  //    }
-  //  }
-
+    client_fd = accept_socket(server_fd);
+    bytes = read(client_fd, &buffer, BUFFER_SIZE);
+    while (bytes > 0) {
+      bytes = read(client_fd, &buffer, BUFFER_SIZE);
+      printf("Received %zd bytes.\n", bytes);
+      printf("Received from client: %s\n", buffer);
+    }
+  }
+  close(server_fd);
   exit(EXIT_SUCCESS);
 }
