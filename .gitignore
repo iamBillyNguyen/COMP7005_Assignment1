@@ -1,3 +1,4 @@
 *.gcno
 *-traceable
 *.dSYM
+*.DS_Store
