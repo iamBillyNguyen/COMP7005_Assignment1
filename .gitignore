@@ -2,3 +2,4 @@
 *-traceable
 *.dSYM
 *.DS_Store
+*.gcda

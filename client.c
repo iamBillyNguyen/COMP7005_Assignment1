@@ -12,9 +12,9 @@
 
 static int create_socket(void);
 static void display_help_message(int exit_code);
-static void process_arguments(int argc, char *argv[], int fd);
+static void parse_arguments(int argc, char *argv[], int fd);
 _Noreturn static void process_response(int fd);
-static void handle_arguments(int argc, char *argv[], int fd);
+static void process_request(int argc, char *argv[], int fd);
 static void connect_socket(int fd, const char *path) {
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
@@ -32,7 +32,7 @@ static void connect_socket(int fd, const char *path) {
 int main(int argc, char *argv[]) {
   int client_fd;
   client_fd = create_socket();
-  process_arguments(argc, argv, client_fd);
+  parse_arguments(argc, argv, client_fd);
   process_response(client_fd);
 
   close(client_fd);
@@ -40,7 +40,47 @@ int main(int argc, char *argv[]) {
   exit(EXIT_SUCCESS);
 }
 
-static void process_arguments(int argc, char *argv[], int fd) {
+static int create_socket(void) {
+#ifdef SOCK_CLOEXEC
+  int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+#else
+  int fd = socket(AF_UNIX, SOCK_STREAM, 0); // NOLINT(android-cloexec-socket)
+#endif
+  if (fd < 0) {
+    perror("Error: Cannot create socket.");
+    exit(EXIT_FAILURE);
+  }
+  return fd;
+}
+
+static void process_request(int argc, char *argv[], int fd) {
+  printf("Request:\n");
+  for (int i = 0; i < argc; i++) {
+    printf("%s ", argv[i]);
+  }
+  connect_socket(fd, argv[1]);
+  strcat(argv[2], "\0");
+  if (write(fd, argv[2], strlen(argv[2]) + 1) < 0) {
+    perror("Error: Cannot write to socket.");
+  }
+  printf("\n");
+}
+
+_Noreturn static void display_help_message(int exit_code) {
+  fprintf(stderr, "Usage: \t./client [target] ...\n");
+  fputs(" \t./client <SOCKET_PATH> <FILE>\n", stderr);
+  fputs(" \t./client [-h]\n", stderr);
+  fputs("Options:\n", stderr);
+  fputs("\t<SOCKET_PATH>\t\tPath to socket (maximum 1024 characters)\n",
+        stderr);
+  fputs("\t<FILE>\t\t\tPath to file and filename (maximum 1024 "
+        "characters)\n",
+        stderr);
+  fputs("\t-h \t\t\tDisplay this help message\n", stderr);
+  exit(exit_code);
+}
+
+static void parse_arguments(int argc, char *argv[], int fd) {
   int opt;
 
   if (argc < 3 || argc > 3) {
@@ -59,7 +99,7 @@ static void process_arguments(int argc, char *argv[], int fd) {
       display_help_message(EXIT_FAILURE);
     }
   }
-  handle_arguments(argc, argv, fd);
+  process_request(argc, argv, fd);
 }
 
 _Noreturn static void process_response(int fd) {
@@ -111,44 +151,4 @@ _Noreturn static void process_response(int fd) {
       fflush(stdout);
     }
   }
-}
-
-static void handle_arguments(int argc, char *argv[], int fd) {
-  printf("Request:\n");
-  for (int i = 0; i < argc; i++) {
-    printf("%s ", argv[i]);
-  }
-  connect_socket(fd, argv[1]);
-  strcat(argv[2], "\0");
-  if (write(fd, argv[2], strlen(argv[2]) + 1) < 0) {
-    perror("Error: Cannot write to socket.");
-  }
-  printf("\n");
-}
-
-_Noreturn static void display_help_message(int exit_code) {
-  fprintf(stderr, "Usage: \t./client [target] ...\n");
-  fputs(" \t./client <SOCKET_PATH> <FILE>\n", stderr);
-  fputs(" \t./client [-h]\n", stderr);
-  fputs("Options:\n", stderr);
-  fputs("\t<SOCKET_PATH>\t\tPath to socket (maximum 1024 characters)\n",
-        stderr);
-  fputs("\t<FILE>\t\t\tPath to file and filename (maximum 1024 "
-        "characters)\n",
-        stderr);
-  fputs("\t-h \t\t\tDisplay this help message\n", stderr);
-  exit(exit_code);
-}
-
-static int create_socket(void) {
-#ifdef SOCK_CLOEXEC
-  int fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-#else
-  int fd = socket(AF_UNIX, SOCK_STREAM, 0); // NOLINT(android-cloexec-socket)
-#endif
-  if (fd < 0) {
-    perror("Error: Cannot create socket.");
-    exit(EXIT_FAILURE);
-  }
-  return fd;
 }

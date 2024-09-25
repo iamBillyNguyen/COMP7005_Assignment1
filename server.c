@@ -11,7 +11,6 @@
 static int create_socket(void);
 static void parse_arguments(int argc, char *argv[], int fd);
 _Noreturn static void process_client_request(int fd);
-// static char* read_data(int fd, char* filename);
 static void display_help_message(int exit_code);
 
 // Create server socket
@@ -30,11 +29,11 @@ static int create_socket(void) {
   return fd;
 }
 
-static void bind_socket(int fd, const char *path) {
+static void bind_socket(int fd, const char *socket_path) {
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
   address.sun_family = AF_UNIX;
-  strncpy(address.sun_path, path, sizeof(address.sun_path) - 1);
+  strncpy(address.sun_path, socket_path, sizeof(address.sun_path) - 1);
   address.sun_path[sizeof(address.sun_path) - 1] = '\0';
 
   if (bind(fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
@@ -64,22 +63,35 @@ static int accept_socket(int fd) {
   return client_fd;
 }
 
+static void process_socket(int fd, const char *socket_path) {
+  if (unlink(socket_path) < 0) {
+    perror("Error: Cannot unlink socket.");
+  }
+  bind_socket(fd, socket_path);
+  listen_socket(fd);
+}
+
 _Noreturn static void display_help_message(int exit_code) {
   fprintf(stderr, "Usage: \t./server [target]\n");
   fputs(" \t./server <SOCKET_PATH>\n", stderr);
   fputs(" \t./server [-h]\n", stderr);
   fputs("Options:\n", stderr);
-  fputs("\tSOCKET_PATH\t\tPath to create and link socket to\n", stderr);
+  fputs("\tSOCKET_PATH\t\tPath to create socket (maximum 1024 characters)\n",
+        stderr);
   fputs("\t-h \t\t\tDisplay this help message\n", stderr);
   exit(exit_code);
 }
 
 static void parse_arguments(int argc, char *argv[], int fd) {
   int opt;
+  // Handling incorrect number of arguments
   if (argc < 2 || argc > 2) {
     display_help_message(EXIT_FAILURE);
   }
-
+  // Handling incorrect size of argument
+  if (strlen(argv[1]) > BUFFER_SIZE) {
+    display_help_message(EXIT_FAILURE);
+  }
   while ((opt = getopt(argc, argv, "h:")) != -1) {
     if (opt == 'h') {
       display_help_message(EXIT_SUCCESS);
@@ -87,9 +99,7 @@ static void parse_arguments(int argc, char *argv[], int fd) {
       display_help_message(EXIT_FAILURE);
     }
   }
-  unlink(argv[1]);
-  bind_socket(fd, argv[1]);
-  listen_socket(fd);
+  process_socket(fd, argv[1]);
 }
 
 _Noreturn static void process_client_request(int fd) {
@@ -103,16 +113,16 @@ _Noreturn static void process_client_request(int fd) {
     while (bytes > 0) {
       FILE *file;
 
-      printf("Received from client: %s\n", buffer);
       file = fopen(buffer, "re");
       memset(buffer, 0, BUFFER_SIZE);
-      printf("fopen is %s\n", (file == NULL) ? "NULL" : "SUCCESS");
       if (file == NULL) {
-        printf("Reponse: ERROR opening file.");
-        bytes = write(client_fd, "\nERROR - Fail to open file.\0",
-                      strlen("\nERROR - Fail to open file.\0"));
+        // Handling when file cannot be opened
+        printf("Reponse: ERROR opening file.\n");
+        bytes =
+            write(client_fd, "\nERROR - Fail to open file, check the file.\0",
+                  strlen("\nERROR - Fail to open file, check the file.\0"));
         if (bytes < 0) {
-          perror("Error: Cannot write to file.");
+          perror("Error: Cannot write to file.\n");
         }
       } else {
         while (fgets(buffer, sizeof(buffer), file) != NULL) {
