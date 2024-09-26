@@ -121,7 +121,7 @@ _Noreturn static void process_response(int fd) {
 
     if (strcmp(error, "\nERROR\0") == 0) {
       printf("\nExiting with error\n");
-      exit(EXIT_SUCCESS);
+      exit(EXIT_FAILURE);
     }
     if (strcmp(success, "\nSUCCESS\0") == 0) {
       printf("\nExiting with success\n");
@@ -142,7 +142,7 @@ _Noreturn static void process_response(int fd) {
 
       if (strcmp(error, "\nERROR\0") == 0) {
         printf("\nExiting with error\n");
-        exit(EXIT_SUCCESS);
+        exit(EXIT_FAILURE);
       }
       if (strcmp(success, "\nSUCCESS\0") == 0) {
         printf("\nExiting with success\n");
