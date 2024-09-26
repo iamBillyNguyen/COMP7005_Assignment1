@@ -13,8 +13,8 @@
 static int create_socket(void);
 static void display_help_message(int exit_code);
 static void parse_arguments(int argc, char *argv[], int fd);
-_Noreturn static void process_response(int fd);
 static void process_request(int argc, char *argv[], int fd);
+_Noreturn static void process_response(int fd);
 static void connect_socket(int fd, const char *path) {
   struct sockaddr_un address;
   memset(&address, 0, sizeof(address));
@@ -149,6 +149,10 @@ _Noreturn static void process_response(int fd) {
       }
       memset(buffer, 0, BUFFER_SIZE);
       fflush(stdout);
+    }
+    if (bytes < 0)
+    {
+      perror("Error: Cannot read from socket.");
     }
   }
 }
