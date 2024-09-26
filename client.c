@@ -29,6 +29,26 @@ static void connect_socket(int fd, const char *path) {
   }
 }
 
+static void check_for_exit(const char *buffer) {
+  char error[ERROR_IDENTIFIER_SIZE + 1];
+  char success[SUCCESS_IDENTIFIER_SIZE + 1];
+
+  // Checking for exit responses from server
+  memcpy(error, buffer, ERROR_IDENTIFIER_SIZE);
+  error[ERROR_IDENTIFIER_SIZE] = '\0';
+  memcpy(success, buffer, SUCCESS_IDENTIFIER_SIZE);
+  success[SUCCESS_IDENTIFIER_SIZE] = '\0';
+
+  if (strcmp(error, "\nERROR\0") == 0) {
+    printf("\nExiting with error\n");
+    exit(EXIT_FAILURE);
+  }
+  if (strcmp(success, "\nSUCCESS\0") == 0) {
+    printf("\nExiting with success\n");
+    exit(EXIT_SUCCESS);
+  }
+}
+
 int main(int argc, char *argv[]) {
   int client_fd;
   client_fd = create_socket();
@@ -107,47 +127,16 @@ _Noreturn static void process_response(int fd) {
   while (1) {
     ssize_t bytes;
     char buffer[BUFFER_SIZE + 1];
-    char error[ERROR_IDENTIFIER_SIZE + 1];
-    char success[SUCCESS_IDENTIFIER_SIZE + 1];
 
     bytes = recv(fd, &buffer, BUFFER_SIZE, 0);
     printf("%s", buffer);
-
-    // Checking for exit responses from server
-    memcpy(error, buffer, ERROR_IDENTIFIER_SIZE);
-    error[ERROR_IDENTIFIER_SIZE] = '\0';
-    memcpy(success, buffer, SUCCESS_IDENTIFIER_SIZE);
-    success[SUCCESS_IDENTIFIER_SIZE] = '\0';
-
-    if (strcmp(error, "\nERROR\0") == 0) {
-      printf("\nExiting with error\n");
-      exit(EXIT_FAILURE);
-    }
-    if (strcmp(success, "\nSUCCESS\0") == 0) {
-      printf("\nExiting with success\n");
-      exit(EXIT_SUCCESS);
-    }
+    check_for_exit(buffer);
     memset(buffer, 0, BUFFER_SIZE);
-    memset(error, 0, ERROR_IDENTIFIER_SIZE + 1);
-    memset(success, 0, SUCCESS_IDENTIFIER_SIZE + 1);
     fflush(stdout);
     while (bytes > 0) {
       bytes = recv(fd, &buffer, BUFFER_SIZE, 0);
       printf("%s", buffer);
-
-      memcpy(error, buffer, ERROR_IDENTIFIER_SIZE);
-      error[ERROR_IDENTIFIER_SIZE] = '\0';
-      memcpy(success, buffer, SUCCESS_IDENTIFIER_SIZE);
-      success[SUCCESS_IDENTIFIER_SIZE] = '\0';
-
-      if (strcmp(error, "\nERROR\0") == 0) {
-        printf("\nExiting with error\n");
-        exit(EXIT_FAILURE);
-      }
-      if (strcmp(success, "\nSUCCESS\0") == 0) {
-        printf("\nExiting with success\n");
-        exit(EXIT_SUCCESS);
-      }
+      check_for_exit(buffer);
       memset(buffer, 0, BUFFER_SIZE);
       fflush(stdout);
     }
