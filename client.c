@@ -113,6 +113,7 @@ _Noreturn static void process_response(int fd) {
     bytes = recv(fd, &buffer, BUFFER_SIZE, 0);
     printf("%s", buffer);
 
+    // Checking for exit responses from server
     memcpy(error, buffer, ERROR_IDENTIFIER_SIZE);
     error[ERROR_IDENTIFIER_SIZE] = '\0';
     memcpy(success, buffer, SUCCESS_IDENTIFIER_SIZE);
@@ -150,8 +151,7 @@ _Noreturn static void process_response(int fd) {
       memset(buffer, 0, BUFFER_SIZE);
       fflush(stdout);
     }
-    if (bytes < 0)
-    {
+    if (bytes < 0) {
       perror("Error: Cannot read from socket.");
     }
   }
